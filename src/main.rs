@@ -18,6 +18,11 @@ mod error {
 }
 use error::*;
 
+enum ParameterType {
+    Input,
+    Output
+}
+
 fn json_from_path(path: &str) -> Result<Value> {
    let mut file = File::open(path)?;
    let mut contents = String::new();
@@ -26,12 +31,31 @@ fn json_from_path(path: &str) -> Result<Value> {
    Ok(json)
 }
 
-fn operations(service: Value) -> Result<Vec<String>> {
+fn operations(service: &Value) -> Result<Vec<String>> {
     let mut rc: Vec<String> = Vec::new();
     for (key, _) in service["operations"].as_object().unwrap() {
         rc.push(key.to_string());
     }
     Ok(rc)
+}
+
+fn parameters(service: &Value, operation: String,
+              f: &Fn(ParameterType, &str, &Value)) -> Result<()> {
+    let operation = service["operations"][operation].as_object().unwrap();
+    let input = operation["input"]["shape"].as_str().unwrap();
+    // let errors = operation["errors"].as_array().unwrap(); // ignore errors for now
+    let ref shapes = service["shapes"];
+    f(ParameterType::Input, input, &shapes[input]);
+    if (operation.contains_key("output")) {
+        let output = operation["output"]["shape"].as_str().unwrap();
+        f(ParameterType::Output, output, &shapes[output]);
+    }
+    Ok(())
+}
+
+fn print_parameters(ptype: ParameterType, name: &str, parameters: &Value) {
+    // TODO: This
+    println!("  {}", name);
 }
 /**********************************************************************
  * Process (not all of that necessarily here)
@@ -43,8 +67,9 @@ fn operations(service: Value) -> Result<Vec<String>> {
 */
 fn main() {
     let j: Value = json_from_path("/usr/lib/python3/dist-packages/botocore/data/kms/2014-11-01/service-2.json").unwrap();
-    for operation in operations(j).unwrap() {
+    for operation in operations(&j).unwrap() {
         println!("{}", operation);
+        parameters(&j, operation, &print_parameters);
     }
     println!("done");
 }
