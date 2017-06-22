@@ -4,6 +4,7 @@ extern crate error_chain;
 use serde_json::Value;
 use std::fs::File;
 use std::io::prelude::*;
+use std::collections::HashMap;
 
 mod error {
     use std;
@@ -24,7 +25,7 @@ enum ParameterType {
     Output
 }
 
-fn json_from_path(path: &str) -> Result<Value> {
+fn json_from_path(path: String) -> Result<Value> {
    let mut file = File::open(path)?;
    let mut contents = String::new();
    file.read_to_string(&mut contents)?;
@@ -41,7 +42,7 @@ fn operations(service: &Value) -> Result<Vec<String>> {
 }
 
 fn parameters(service: &Value, operation: String,
-              f: &Fn(ParameterType, &str, &Value)) -> Result<()> {
+              f: &Fn(ParameterType, &str, &Value)) {
     let operation = service["operations"][operation].as_object().unwrap();
     let input = operation["input"]["shape"].as_str().unwrap();
     // let errors = operation["errors"].as_array().unwrap(); // ignore errors for now
@@ -51,17 +52,50 @@ fn parameters(service: &Value, operation: String,
         let output = operation["output"]["shape"].as_str().unwrap();
         f(ParameterType::Output, output, &shapes[output]);
     }
-    Ok(())
 }
 
 fn print_parameters(ptype: ParameterType, _: &str, parameters: &Value) {
     if ptype == ParameterType::Input {
         for (key, _) in parameters["members"].as_object().unwrap() {
-            println!("  {}", key);
+            println!("    {}", key);
         }
     }
     // TODO: Determine if we want to check outputs as well
 }
+
+/// Crawls a standard botocore fs hierarchy. Returns map of service/service file path
+///
+/// # Arguments
+///
+/// * `basepath` - base path for boto. Default:
+///                /usr/lib/python3/dist-packages/botocore/data/
+fn service_files(basepath: Option<&str>) -> Result<HashMap<String, String>> {
+    let mut rc = HashMap::new();
+    let path = match basepath {
+        Some(x) => x.to_string(),
+        None => "/usr/lib/python3/dist-packages/botocore/data".to_string(),
+    };
+    for entry in std::fs::read_dir(&path)? {
+        let entry = entry?;
+        let entrypath = entry.path();
+        if entrypath.is_dir() {
+            let servicename = entry.file_name();
+            let mut newest = std::ffi::OsString::from("0");
+            //let mut newestentry = DirEntry
+            for serviceentry in std::fs::read_dir(entry.path())? {
+                let serviceentry = serviceentry?;
+                let current = serviceentry.file_name();
+                if current > newest {
+                    newest = current;
+                }
+            }
+            println!("newest {:?}: {:?}", servicename.into_string(), newest.into_string());
+        }
+    }
+    rc.insert("kms".to_string(), path + &("/kms/2014-11-01/service-2.json".to_string()));
+    Ok(rc)
+}
+
 /**********************************************************************
  * Process (not all of that necessarily here)
  *
@@ -71,9 +105,13 @@ fn print_parameters(ptype: ParameterType, _: &str, parameters: &Value) {
  *********************************************************************/
 */
 fn main() {
-    let j: Value = json_from_path("/usr/lib/python3/dist-packages/botocore/data/kms/2014-11-01/service-2.json").unwrap();
-    for operation in operations(&j).unwrap() {
-        println!("{}", operation);
-        parameters(&j, operation, &print_parameters).unwrap();
+    for (service, file) in service_files(None).unwrap() {
+        println!("{}", service);
+        println!("  {}", file);
+//        let j: Value = json_from_path(file).unwrap();
+//        for operation in operations(&j).unwrap() {
+//            println!("  {}", operation);
+//            parameters(&j, operation, &print_parameters);
+//        }
     }
 }
