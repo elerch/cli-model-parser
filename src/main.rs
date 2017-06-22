@@ -18,6 +18,7 @@ mod error {
 }
 use error::*;
 
+#[derive(PartialEq, Eq)]
 enum ParameterType {
     Input,
     Output
@@ -46,16 +47,20 @@ fn parameters(service: &Value, operation: String,
     // let errors = operation["errors"].as_array().unwrap(); // ignore errors for now
     let ref shapes = service["shapes"];
     f(ParameterType::Input, input, &shapes[input]);
-    if (operation.contains_key("output")) {
+    if operation.contains_key("output") {
         let output = operation["output"]["shape"].as_str().unwrap();
         f(ParameterType::Output, output, &shapes[output]);
     }
     Ok(())
 }
 
-fn print_parameters(ptype: ParameterType, name: &str, parameters: &Value) {
-    // TODO: This
-    println!("  {}", name);
+fn print_parameters(ptype: ParameterType, _: &str, parameters: &Value) {
+    if ptype == ParameterType::Input {
+        for (key, _) in parameters["members"].as_object().unwrap() {
+            println!("  {}", key);
+        }
+    }
+    // TODO: Determine if we want to check outputs as well
 }
 /**********************************************************************
  * Process (not all of that necessarily here)
@@ -69,7 +74,6 @@ fn main() {
     let j: Value = json_from_path("/usr/lib/python3/dist-packages/botocore/data/kms/2014-11-01/service-2.json").unwrap();
     for operation in operations(&j).unwrap() {
         println!("{}", operation);
-        parameters(&j, operation, &print_parameters);
+        parameters(&j, operation, &print_parameters).unwrap();
     }
-    println!("done");
 }
