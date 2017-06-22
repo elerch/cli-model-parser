@@ -1,29 +1,9 @@
 extern crate serde_json;
 #[macro_use]
 extern crate error_chain;
-use serde_json::{Value, Error};
+use serde_json::Value;
 use std::fs::File;
 use std::io::prelude::*;
-
-fn untyped_example() -> Result<()> {
-    // Some JSON input data as a &str. Maybe this comes from the user.
-    let data = r#"{
-                    "name": "John Doe",
-                    "age": 43,
-                    "phones": [
-                      "+44 1234567",
-                      "+44 2345678"
-                    ]
-                  }"#;
-
-    // Parse the string of data into serde_json::Value.
-    let v: Value = serde_json::from_str(data)?;
-
-    // Access parts of the data by indexing with square brackets.
-    println!("Please call {} at the number {}", v["name"], v["phones"][0]);
-
-    Ok(())
-}
 
 mod error {
     use std;
@@ -38,12 +18,20 @@ mod error {
 }
 use error::*;
 
-fn jsonFromPath(path: &str) -> Result<Value> {
+fn json_from_path(path: &str) -> Result<Value> {
    let mut file = File::open(path)?;
    let mut contents = String::new();
    file.read_to_string(&mut contents)?;
    let json = serde_json::from_str(&contents)?;
    Ok(json)
+}
+
+fn operations(service: Value) -> Result<Vec<String>> {
+    let mut rc: Vec<String> = Vec::new();
+    for (key, _) in service["operations"].as_object().unwrap() {
+        rc.push(key.to_string());
+    }
+    Ok(rc)
 }
 /**********************************************************************
  * Process (not all of that necessarily here)
@@ -54,6 +42,9 @@ fn jsonFromPath(path: &str) -> Result<Value> {
  *********************************************************************/
 */
 fn main() {
-    let j: Value = jsonFromPath("/usr/lib/python3/dist-packages/botocore/data/kms/2014-11-01/service-2.json").unwrap();
+    let j: Value = json_from_path("/usr/lib/python3/dist-packages/botocore/data/kms/2014-11-01/service-2.json").unwrap();
+    for operation in operations(j).unwrap() {
+        println!("{}", operation);
+    }
     println!("done");
 }
