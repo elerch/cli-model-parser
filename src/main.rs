@@ -44,10 +44,12 @@ fn operations(service: &Value) -> Result<Vec<String>> {
 fn parameters(service: &Value, operation: String,
               f: &Fn(ParameterType, &str, &Value)) {
     let operation = service["operations"][operation].as_object().unwrap();
-    let input = operation["input"]["shape"].as_str().unwrap();
-    // let errors = operation["errors"].as_array().unwrap(); // ignore errors for now
     let ref shapes = service["shapes"];
-    f(ParameterType::Input, input, &shapes[input]);
+    if operation.contains_key("input") {
+        let input = operation["input"]["shape"].as_str().unwrap();
+        f(ParameterType::Input, input, &shapes[input]);
+    }
+    // let errors = operation["errors"].as_array().unwrap(); // ignore errors for now
     if operation.contains_key("output") {
         let output = operation["output"]["shape"].as_str().unwrap();
         f(ParameterType::Output, output, &shapes[output]);
@@ -81,7 +83,6 @@ fn service_files(basepath: Option<&str>) -> Result<HashMap<String, String>> {
         if entrypath.is_dir() {
             let servicename = entry.file_name();
             let mut newest = std::ffi::OsString::from("0");
-            //let mut newestentry = DirEntry
             for serviceentry in std::fs::read_dir(entry.path())? {
                 let serviceentry = serviceentry?;
                 let current = serviceentry.file_name();
@@ -89,10 +90,11 @@ fn service_files(basepath: Option<&str>) -> Result<HashMap<String, String>> {
                     newest = current;
                 }
             }
-            println!("newest {:?}: {:?}", servicename.into_string(), newest.into_string());
+            let newestserviceentry = entrypath.join(newest).join("service-2.json");
+            rc.insert(servicename.into_string().unwrap(), newestserviceentry.to_str().unwrap().to_string());
         }
     }
-    rc.insert("kms".to_string(), path + &("/kms/2014-11-01/service-2.json".to_string()));
+    //rc.insert("kms".to_string(), path + &("/kms/2014-11-01/service-2.json".to_string()));
     Ok(rc)
 }
 
@@ -107,11 +109,11 @@ fn service_files(basepath: Option<&str>) -> Result<HashMap<String, String>> {
 fn main() {
     for (service, file) in service_files(None).unwrap() {
         println!("{}", service);
-        println!("  {}", file);
-//        let j: Value = json_from_path(file).unwrap();
-//        for operation in operations(&j).unwrap() {
-//            println!("  {}", operation);
-//            parameters(&j, operation, &print_parameters);
-//        }
+        //println!("  {}", file);
+        let j: Value = json_from_path(file).unwrap();
+        for operation in operations(&j).unwrap() {
+            println!("  {}", operation);
+            parameters(&j, operation, &print_parameters);
+        }
     }
 }
