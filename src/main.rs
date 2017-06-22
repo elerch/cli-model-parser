@@ -1,8 +1,11 @@
 extern crate serde_json;
-
+#[macro_use]
+extern crate error_chain;
 use serde_json::{Value, Error};
+use std::fs::File;
+use std::io::prelude::*;
 
-fn untyped_example() -> Result<(), Error> {
+fn untyped_example() -> Result<()> {
     // Some JSON input data as a &str. Maybe this comes from the user.
     let data = r#"{
                     "name": "John Doe",
@@ -21,6 +24,27 @@ fn untyped_example() -> Result<(), Error> {
 
     Ok(())
 }
+
+mod error {
+    use std;
+    use serde_json;
+
+    error_chain!{
+        foreign_links {
+            IoError(std::io::Error);
+            JsonError(serde_json::error::Error);
+        }
+    }
+}
+use error::*;
+
+fn jsonFromPath(path: &str) -> Result<Value> {
+   let mut file = File::open(path)?;
+   let mut contents = String::new();
+   file.read_to_string(&mut contents)?;
+   let json = serde_json::from_str(&contents)?;
+   Ok(json)
+}
 /**********************************************************************
  * Process (not all of that necessarily here)
  *
@@ -30,5 +54,6 @@ fn untyped_example() -> Result<(), Error> {
  *********************************************************************/
 */
 fn main() {
-   untyped_example().unwrap()
+    let j: Value = jsonFromPath("/usr/lib/python3/dist-packages/botocore/data/kms/2014-11-01/service-2.json").unwrap();
+    println!("done");
 }
