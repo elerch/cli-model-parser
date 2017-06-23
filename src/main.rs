@@ -41,25 +41,25 @@ fn operations(service: &Value) -> Result<Vec<String>> {
     Ok(rc)
 }
 
-fn parameters(service: &Value, operation: String,
-              f: &Fn(ParameterType, &str, &Value)) {
-    let operation = service["operations"][operation].as_object().unwrap();
+fn parameters(service: &Value, servicename: &String, operationname: &String,
+              f: &Fn(ParameterType, &str, &String, &String, &Value)) {
+    let operation = service["operations"][&operationname].as_object().unwrap();
     let ref shapes = service["shapes"];
     if operation.contains_key("input") {
         let input = operation["input"]["shape"].as_str().unwrap();
-        f(ParameterType::Input, input, &shapes[input]);
+        f(ParameterType::Input, input, &servicename, &operationname, &shapes[input]);
     }
     // let errors = operation["errors"].as_array().unwrap(); // ignore errors for now
     if operation.contains_key("output") {
         let output = operation["output"]["shape"].as_str().unwrap();
-        f(ParameterType::Output, output, &shapes[output]);
+        f(ParameterType::Output, output, &servicename, &operationname, &shapes[output]);
     }
 }
 
-fn print_parameters(ptype: ParameterType, _: &str, parameters: &Value) {
+fn print_parameters(ptype: ParameterType, _: &str, service: &String, operation: &String, parameters: &Value) {
     if ptype == ParameterType::Input {
         for (key, _) in parameters["members"].as_object().unwrap() {
-            println!("    {}", key);
+            println!("{}\t{}\t{}", &service, &operation, key);
         }
     }
     // TODO: Determine if we want to check outputs as well
@@ -108,12 +108,9 @@ fn service_files(basepath: Option<&str>) -> Result<HashMap<String, String>> {
 */
 fn main() {
     for (service, file) in service_files(None).unwrap() {
-        println!("{}", service);
-        //println!("  {}", file);
         let j: Value = json_from_path(file).unwrap();
         for operation in operations(&j).unwrap() {
-            println!("  {}", operation);
-            parameters(&j, operation, &print_parameters);
+            parameters(&j, &service, &operation, &print_parameters);
         }
     }
 }
