@@ -6,4 +6,3 @@ authors = ["Emil Lerch <emil@lerch.org>"]
 [dependencies]
 #serde = "1.0"
 serde_json = "1.0"
-error-chain = "0.10.0"

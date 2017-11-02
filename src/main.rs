@@ -1,23 +1,9 @@
 extern crate serde_json;
-#[macro_use]
-extern crate error_chain;
+use std::error::Error;
 use serde_json::Value;
 use std::fs::File;
 use std::io::prelude::*;
 use std::collections::HashMap;
-
-mod error {
-    use std;
-    use serde_json;
-
-    error_chain!{
-        foreign_links {
-            IoError(std::io::Error);
-            JsonError(serde_json::error::Error);
-        }
-    }
-}
-use error::*;
 
 #[derive(PartialEq, Eq)]
 enum ParameterType {
@@ -25,7 +11,7 @@ enum ParameterType {
     Output
 }
 
-fn json_from_path(path: String) -> Result<Value> {
+fn json_from_path(path: String) -> Result<Value, Box<Error>> {
    let mut file = File::open(path)?;
    let mut contents = String::new();
    file.read_to_string(&mut contents)?;
@@ -33,7 +19,7 @@ fn json_from_path(path: String) -> Result<Value> {
    Ok(json)
 }
 
-fn operations(service: &Value) -> Result<Vec<String>> {
+fn operations(service: &Value) -> Result<Vec<String>, Box<Error>> {
     let mut rc: Vec<String> = Vec::new();
     for (key, _) in service["operations"].as_object().unwrap() {
         rc.push(key.to_string());
@@ -71,7 +57,7 @@ fn print_parameters(ptype: ParameterType, _: &str, service: &String, operation: 
 ///
 /// * `basepath` - base path for boto. Default:
 ///                /usr/lib/python3/dist-packages/botocore/data/
-fn service_files(basepath: Option<&str>) -> Result<HashMap<String, String>> {
+fn service_files(basepath: Option<&str>) -> Result<HashMap<String, String>, Box<Error>> {
     let mut rc = HashMap::new();
     let path = match basepath {
         Some(x) => x.to_string(),
